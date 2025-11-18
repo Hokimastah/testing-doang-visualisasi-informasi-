@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Proyeksi Studi (Interaktif)</title>
+    <!-- Memuat Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Muat library date-fns untuk format tanggal (FIXED) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.29.3/umd/date-fns.min.js"></script>
+    <script>
+        // Konfigurasi custom Tailwind agar menggunakan font Inter
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        /* Mengganti font body utama */
+        body {
+            font-family: 'Inter', 'sans-serif';
+        }
+        /* Style untuk transisi modal */
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        .modal-content {
+            transition: transform 0.25s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <!-- ===== HEADER ===== -->
+        <header class="mb-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">Dashboard Proyeksi Studi</h1>
+                    <p class="text-gray-600">Visualisasi data proyeksi kelulusan dan potensi dropout mahasiswa.</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-500">Data diperbarui:</p>
+                    <p id="last-updated" class="text-sm font-semibold text-gray-700">...</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- ===== FILTER ===== -->
+        <section class="mb-6 p-4 bg-white rounded-lg shadow-md">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Filter Fakultas -->
+                <div>
+                    <label for="fakultas" class="block text-sm font-medium text-gray-700 mb-1">Fakultas</label>
+                    <select id="fakultas" name="fakultas" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="semua">Semua Fakultas</option>
+                        <option value="FTEIC">Fakultas Teknik</option>
+                        <option value="FE">Fakultas Ekonomi</option>
+                        <option value="FMIPA">Fakultas MIPA</option>
+                    </select>
+                </div>
+                <!-- Filter Program Studi -->
+                <div>
+                    <label for="prodi" class="block text-sm font-medium text-gray-700 mb-1">Program Studi</label>
+                    <select id="prodi" name="prodi" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="semua">Semua Prodi</option>
+                        <option value="IF">Teknik Informatika</option>
+                        <option value="MN">Manajemen</option>
+                        <option value="ST">Statistika</option>
+                        <option value="TE">Teknik Elektro</option>
+                    </select>
+                </div>
+                <!-- Filter Angkatan -->
+                <div>
+                    <label for="angkatan" class="block text-sm font-medium text-gray-700 mb-1">Angkatan</label>
+                    <select id="angkatan" name="angkatan" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="semua">Semua Angkatan</option>
+                        <option value="2020">2020</option>
+                        <option value="2021">2021</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                    </select>
+                </div>
+                <!-- Tombol Terapkan -->
+                <div class="self-end">
+                    <button id="apply-filter-btn" class="w-full bg-blue-600 text-white p-2 rounded-lg shadow-md hover:bg-blue-700 transition duration-200">
+                        Terapkan Filter
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== KARTU KPI (Key Performance Indicators) ===== -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <!-- Card 1: Mahasiswa Aktif -->
+            <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                <!-- ... ikon ... -->
+                <div class="bg-blue-100 text-blue-600 p-3 rounded-full mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-2.121M17 20v-2m0 2H5a2 2 0 01-2-2v-5a2 2 0 012-2h14a2 2 0 012 2v5a2 2 0 01-2 2h-5m0 0a3 3 0 00-5.356-2.121M12 13V4m0 9H5m7 0h5" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Mahasiswa Aktif</p>
+                    <p id="kpi-mahasiswa-aktif" class="text-3xl font-bold text-gray-900">0</p>
+                </div>
+            </div>
+            <!-- Card 2: Lulus Tepat Waktu -->
+            <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                <!-- ... ikon ... -->
+                <div class="bg-green-100 text-green-600 p-3 rounded-full mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Proyeksi Tepat Waktu</p>
+                    <p id="kpi-tepat-waktu" class="text-3xl font-bold text-gray-900">0%</p>
+                </div>
+            </div>
+            <!-- Card 3: Rata-rata IPK -->
+            <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                <!-- ... ikon ... -->
+                <div class="bg-indigo-100 text-indigo-600 p-3 rounded-full mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Rata-Rata IPK</p>
+                    <p id="kpi-ipk" class="text-3xl font-bold text-gray-900">0.00</p>
+                </div>
+            </div>
+            <!-- Card 4: Risiko Dropout -->
+            <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                <!-- ... ikon ... -->
+                <div class="bg-red-100 text-red-600 p-3 rounded-full mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Berisiko Dropout</p>
+                    <p id="kpi-risiko-do" class="text-3xl font-bold text-red-600">0</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== GRAFIK VISUALISASI ===== -->
+        <section class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
+            <!-- Grafik 1: Distribusi Risiko Dropout (Donut) -->
+            <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Distribusi Risiko Dropout</h2>
+                <div class="h-64 md:h-80">
+                    <canvas id="dropoutRiskChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Grafik 2: Proyeksi Status Studi (Bar) -->
+            <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-3">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Proyeksi Status Studi per Angkatan</h2>
+                <div class="h-64 md:h-80">
+                    <canvas id="studyProjectionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Grafik 3: Tren Risiko (Line) -->
+            <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-5">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Tren Risiko Dropout per Semester</h2>
+                <div class="h-64 md:h-80">
+                    <canvas id="dropoutTrendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Grafik 4: Distribusi Faktor Risiko (Horizontal Bar) -->
+            <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-5">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Distribusi Faktor Risiko Paling Umum (Mahasiswa Berisiko)</h2>
+                <p class="text-sm text-gray-500 mb-4 -mt-3">Menampilkan faktor-faktor yang paling sering muncul pada mahasiswa dengan status 'Risiko Tinggi', 'Risiko Sedang', atau 'Terlambat'.</p>
+                <div class="h-80 md:h-96">
+                    <canvas id="factorDistributionChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TABEL DATA MAHASISWA ===== -->
+        <section class="bg-white p-6 rounded-lg shadow-md">
+            <!-- Header Tabel dengan Search dan Sort -->
+            <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                <h2 class="text-xl font-semibold text-gray-800">Daftar Mahasiswa (Prioritas Risiko)</h2>
+                <div class="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                    <!-- Search Input -->
+                    <input type="text" id="search-name" placeholder="Cari nama mahasiswa..." class="w-full md:w-auto p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    <!-- Sort By Dropdown -->
+                    <div>
+                        <label for="sort-by" class="text-sm font-medium text-gray-700 sr-only">Urutkan</label>
+                        <select id="sort-by" name="sort-by" class="w-full md:w-auto p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="risiko-desc">Urutkan: Risiko (Tinggi ke Rendah)</option>
+                            <option value="risiko-asc">Urutkan: Risiko (Rendah ke Tinggi)</option>
+                            <option value="nama-asc">Urutkan: Nama (A-Z)</option>
+                            <option value="nama-desc">Urutkan: Nama (Z-A)</option>
+                            <option value="semester-desc">Urutkan: Semester (Tinggi ke Rendah)</option>
+                            <option value="semester-asc">Urutkan: Semester (Rendah ke Tinggi)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="py-3 px-4 text-sm font-semibold text-gray-600">Nama Mahasiswa</th>
+                            <th class="py-3 px-4 text-sm font-semibold text-gray-600">NIM</th>
+                            <th class="py-3 px-4 text-sm font-semibold text-gray-600">Program Studi</th>
+                            <th class="py-3 px-4 text-sm font-semibold text-gray-600">Semester</th>
+                            <th class="py-3 px-4 text-sm font-semibold text-gray-600">Skor Risiko (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="student-table-body" class="divide-y divide-gray-200">
+                        <!-- Data akan di-generate oleh JavaScript -->
+                        <tr>
+                            <td colspan="5" class="py-6 px-4 text-center text-gray-500">Memuat data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Paginasi Tabel -->
+            <div class="flex justify-between items-center mt-4">
+                <span id="page-info" class="text-sm text-gray-700">Menampilkan 0 dari 0</span>
+                <div>
+                    <button id="prev-page-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg shadow-sm hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Sebelumnya
+                    </button>
+                    <button id="next-page-btn" class="ml-2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Selanjutnya
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ===== MODAL DETAIL MAHASISWA ===== -->
+    <div id="student-modal" class="modal fixed inset-0 z-40 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white w-full max-w-2xl rounded-lg shadow-xl p-6 relative opacity-100 transform scale-95">
+            <!-- Tombol Close Modal -->
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            
+            <!-- Konten Modal -->
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Detail Mahasiswa</h2>
+            
+            <!-- Info Dasar -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <p class="text-sm text-gray-500">Nama</p>
+                    <p id="modal-nama" class="font-semibold text-gray-900">Nama Lengkap</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">NIM</p>
+                    <p id="modal-nim" class="font-semibold text-gray-900">123456789</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Prodi / Angkatan</p>
+                    <p id="modal-prodi" class="font-semibold text-gray-900">Teknik Informatika / 2021</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Status Proyeksi</p>
+                    <p id="modal-status" class="font-semibold text-gray-900">Risiko Tinggi</p>
+                </div>
+            </div>
+
+            <!-- Detail Risiko -->
+            <div class="mb-4">
+                <p class="text-sm text-gray-500">Faktor Risiko Utama</p>
+                <ul id="modal-faktor-risiko" class="list-disc list-inside mt-1 text-sm text-red-600">
+                    <!-- Diisi oleh JS -->
+                </ul>
+            </div>
+
+            <!-- Riwayat IPK (Contoh Visualisasi Mini) -->
+            <div>
+                <p class="text-sm text-gray-500 mb-2">Riwayat IPK</p>
+                <div class="w-full bg-gray-100 rounded-lg p-3">
+                    <canvas id="modal-ipk-chart" height="100"></canvas>
+                </div>
+            </div>
+
+            <div class="mt-6 text-right">
+                <button class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-700">Hubungi Dosen Wali</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ============================================= -->
+    <!--          SCRIPT INTERAKTIF UTAMA              -->
+    <!-- ============================================= -->
+    <script>
+        // =================================
+        // DUMMY DATABASE (Data Mahasiswa)
+        // =================================
+        const dummyDB = [
+            // Data untuk FE, MN, 2021
+            { id: 1, nama: 'Citra Lestari', nim: '140121023', fakultas: 'FE', prodi: 'MN', angkatan: '2021', semester: 6, ipk: 2.85, sks: 90, risikoSkor: 88, status: 'Risiko Tinggi', detail: { ipkHistory: [3.5, 3.2, 3.0, 2.9, 2.7, 2.8], faktor: ['IPK 2 semester terakhir < 3.0', 'SKS kumulatif < 100'] } },
+            { id: 2, nama: 'Beni Setiawan', nim: '140121045', fakultas: 'FE', prodi: 'MN', angkatan: '2021', semester: 6, ipk: 3.55, sks: 110, risikoSkor: 30, status: 'Tepat Waktu', detail: { ipkHistory: [3.6, 3.7, 3.5, 3.6, 3.5, 3.4], faktor: [] } },
+            // Data untuk FTEIC, IF, 2021
+            { id: 3, nama: 'Budi Santoso', nim: '120221001', fakultas: 'FTEIC', prodi: 'IF', angkatan: '2021', semester: 6, ipk: 2.75, sks: 85, risikoSkor: 92, status: 'Risiko Tinggi', detail: { ipkHistory: [3.1, 3.0, 2.9, 2.8, 2.7, 2.6], faktor: ['IPK < 2.75', 'SKS kumulatif < 90', 'Mengulang > 3 mata kuliah'] } },
+            { id: 4, nama: 'Anisa Rahma', nim: '120221012', fakultas: 'FTEIC', prodi: 'IF', angkatan: '2021', semester: 6, ipk: 3.80, sks: 115, risikoSkor: 15, status: 'Tepat Waktu', detail: { ipkHistory: [3.7, 3.8, 3.9, 3.8, 3.7, 3.9], faktor: [] } },
+            // Data untuk FTEIC, IF, 2022
+            { id: 5, nama: 'Dimas Anggara', nim: '120222015', fakultas: 'FTEIC', prodi: 'IF', angkatan: '2022', semester: 4, ipk: 3.10, sks: 60, risikoSkor: 76, status: 'Risiko Sedang', detail: { ipkHistory: [3.3, 3.2, 3.0, 2.9], faktor: ['IPK semester terakhir < 3.0'] } },
+            { id: 6, nama: 'Diana Putri', nim: '120222030', fakultas: 'FTEIC', prodi: 'IF', angkatan: '2022', semester: 4, ipk: 3.60, sks: 70, risikoSkor: 25, status: 'Tepat Waktu', detail: { ipkHistory: [3.5, 3.6, 3.7, 3.6], faktor: [] } },
+            // Data untuk FMIPA, ST, 2021
+            { id: 7, nama: 'Eka Wijaya', nim: '130521040', fakultas: 'FMIPA', prodi: 'ST', angkatan: '2021', semester: 6, ipk: 2.90, sks: 95, risikoSkor: 85, status: 'Risiko Tinggi', detail: { ipkHistory: [3.4, 3.3, 3.1, 3.0, 2.8, 2.7], faktor: ['IPK 2 semester terakhir < 3.0', 'SKS kumulatif < 100'] } },
+            // Data untuk FTEIC, TE, 2020
+            { id: 8, nama: 'Fajar Nugroho', nim: '120120005', fakultas: 'FTEIC', prodi: 'TE', angkatan: '2020', semester: 8, ipk: 3.20, sks: 130, risikoSkor: 60, status: 'Terlambat', detail: { ipkHistory: [3.3, 3.4, 3.2, 3.1, 3.3, 3.2, 3.0, 3.1], faktor: ['Belum mengambil TA/Skripsi'] } },
+            { id: 9, nama: 'Gita Permata', nim: '120120010', fakultas: 'FTEIC', prodi: 'TE', angkatan: '2020', semester: 8, ipk: 3.70, sks: 144, risikoSkor: 10, status: 'Tepat Waktu', detail: { ipkHistory: [3.6, 3.7, 3.8, 3.7, 3.6, 3.8, 3.7, 3.8], faktor: [] } },
+            // Tambah lebih banyak data untuk membuat paginasi berfungsi
+            { id: 10, nama: 'Harianto', nim: '120221050', fakultas: 'FTEIC', prodi: 'IF', angkatan: '2021', semester: 6, ipk: 3.10, sks: 105, risikoSkor: 45, status: 'Tepat Waktu', detail: { ipkHistory: [3.1, 3.2, 3.0, 3.3, 3.1, 3.0], faktor: [] } },
+            { id: 11, nama: 'Indah Cahyani', nim: '140122011', fakultas: 'FE', prodi: 'MN', angkatan: '2022', semester: 4, ipk: 3.85, sks: 72, risikoSkor: 10, status: 'Tepat Waktu', detail: { ipkHistory: [3.8, 3.9, 3.8, 3.9], faktor: [] } },
+            { id: 12, nama: 'Joko Susilo', nim: '140122022', fakultas: 'FE', prodi: 'MN', angkatan: '2022', semester: 4, ipk: 2.95, sks: 58, risikoSkor: 70, status: 'Risiko Sedang', detail: { ipkHistory: [3.1, 3.0, 2.9, 2.8], faktor: ['IPK semester terakhir < 3.0'] } },
+            { id: 13, nama: 'Kurnia Mega', nim: '130523001', fakultas: 'FMIPA', prodi: 'ST', angkatan: '2023', semester: 2, ipk: 3.90, sks: 36, risikoSkor: 5, status: 'Tepat Waktu', detail: { ipkHistory: [3.9, 3.9], faktor: [] } },
+            { id: 14, nama: 'Lina Marlina', nim: '130523007', fakultas: 'FMIPA', prodi: 'ST', angkatan: '2023', semester: 2, ipk: 2.80, sks: 30, risikoSkor: 65, status: 'Risiko Sedang', detail: { ipkHistory: [3.0, 2.6], faktor: ['IPK semester terakhir < 3.0'] } },
+            { id: 15, nama: 'Mega Mendung', nim: '120120015', fakultas: 'FTEIC', prodi: 'TE', angkatan: '2020', semester: 8, ipk: 2.65, sks: 120, risikoSkor: 95, status: 'Risiko Tinggi', detail: { ipkHistory: [3.0, 2.9, 2.8, 2.7, 2.5, 2.6, 2.7, 2.4], faktor: ['IPK < 2.75', 'SKS < 130 di semester 8'] } },
+        ];
+
+        // =================================
+        // Variabel Global
+        // =================================
+        let dropoutChartInstance, projectionChartInstance, trendChartInstance, modalIPKChartInstance, factorChartInstance;
+        let currentPage = 1;
+        const rowsPerPage = 5;
+        let filteredData = [];
+
+        // Elemen DOM
+        const kpiMahasiswaAktif = document.getElementById('kpi-mahasiswa-aktif');
+        const kpiTepatWaktu = document.getElementById('kpi-tepat-waktu');
+        const kpiIpk = document.getElementById('kpi-ipk');
+        const kpiRisikoDo = document.getElementById('kpi-risiko-do');
+        const lastUpdatedEl = document.getElementById('last-updated');
+
+        const filterFakultas = document.getElementById('fakultas');
+        const filterProdi = document.getElementById('prodi');
+        const filterAngkatan = document.getElementById('angkatan');
+        const applyFilterBtn = document.getElementById('apply-filter-btn');
+
+        const searchNameInput = document.getElementById('search-name');
+        const sortBySelect = document.getElementById('sort-by');
+
+        const studentTableBody = document.getElementById('student-table-body');
+        const pageInfo = document.getElementById('page-info');
+        const prevPageBtn = document.getElementById('prev-page-btn');
+        const nextPageBtn = document.getElementById('next-page-btn');
+
+        const studentModal = document.getElementById('student-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const modalNama = document.getElementById('modal-nama');
+        const modalNim = document.getElementById('modal-nim');
+        const modalProdi = document.getElementById('modal-prodi');
+        const modalStatus = document.getElementById('modal-status');
+        const modalFaktorRisiko = document.getElementById('modal-faktor-risiko');
+
+        // =================================
+        // Fungsi Utama
+        // =================================
+
+        /**
+         * Fungsi utama untuk memfilter data dan memperbarui seluruh UI
+         */
+        function updateDashboard() {
+            // PERBAIKAN: Pengecekan dateFns dihapus dari sini karena window.load menjamin ketersediaannya
+            const filters = {
+                fakultas: filterFakultas.value,
+                prodi: filterProdi.value,
+                angkatan: filterAngkatan.value,
+            };
+            const searchQuery = searchNameInput.value.toLowerCase();
+            const sortBy = sortBySelect.value;
+
+            // 1. Filter data
+            filteredData = dummyDB.filter(mhs => {
+                const passFakultas = filters.fakultas === 'semua' || mhs.fakultas === filters.fakultas;
+                const passProdi = filters.prodi === 'semua' || mhs.prodi === filters.prodi;
+                const passAngkatan = filters.angkatan === 'semua' || mhs.angkatan === filters.angkatan;
+                const passSearch = mhs.nama.toLowerCase().includes(searchQuery);
+                return passFakultas && passProdi && passAngkatan && passSearch;
+            });
+
+            // 2. Urutkan data
+            switch (sortBy) {
+                case 'risiko-asc':
+                    filteredData.sort((a, b) => a.risikoSkor - b.risikoSkor);
+                    break;
+                case 'nama-asc':
+                    filteredData.sort((a, b) => a.nama.localeCompare(b.nama));
+                    break;
+                case 'nama-desc':
+                    filteredData.sort((a, b) => b.nama.localeCompare(a.nama));
+                    break;
+                case 'semester-desc':
+                    filteredData.sort((a, b) => b.semester - a.semester);
+                    break;
+                case 'semester-asc':
+                    filteredData.sort((a, b) => a.semester - b.semester);
+                    break;
+                case 'risiko-desc':
+                default:
+                    filteredData.sort((a, b) => b.risikoSkor - a.risikoSkor); // Default
+                    break;
+            }
+
+            // 3. Update KPI (masih berdasarkan data yang difilter, sebelum di-sort)
+            //    Tidak masalah, updateKPIs hanya butuh data yang sudah difilter
+            updateKPIs(filteredData);
+
+            // 4. Update Grafik
+            updateCharts(filteredData);
+
+            // 5. Update Tabel (reset ke halaman 1)
+            currentPage = 1;
+            updateTable(filteredData);
+
+            // 6. Update timestamp
+            // Pastikan dateFns ada sebelum memanggilnya (sebagai penjaga ganda)
+            if (typeof dateFns !== 'undefined' && typeof dateFns.format === 'function') {
+                lastUpdatedEl.textContent = dateFns.format(new Date(), 'dd MMM yyyy, HH:mm:ss');
+            } else if (typeof dateFns === 'undefined') {
+                 console.error("dateFns still not loaded inside updateDashboard. Check network or CDN link.");
+            }
+        }
+
+        /**
+         * Memperbarui 4 kartu KPI
+         */
+        function updateKPIs(data) {
+            const totalMahasiswa = data.length;
+            kpiMahasiswaAktif.textContent = totalMahasiswa;
+
+            if (totalMahasiswa === 0) {
+                kpiTepatWaktu.textContent = '0%';
+                kpiIpk.textContent = '0.00';
+                kpiRisikoDo.textContent = '0';
+                return;
+            }
+
+            const tepatWaktuCount = data.filter(mhs => mhs.status === 'Tepat Waktu').length;
+            const persenTepatWaktu = totalMahasiswa > 0 ? (tepatWaktuCount / totalMahasiswa) * 100 : 0;
+            kpiTepatWaktu.textContent = `${persenTepatWaktu.toFixed(1)}%`;
+
+            const totalIpk = data.reduce((sum, mhs) => sum + mhs.ipk, 0);
+            const avgIpk = totalMahasiswa > 0 ? totalIpk / totalMahasiswa : 0;
+            kpiIpk.textContent = avgIpk.toFixed(2);
+
+            const risikoTinggiCount = data.filter(mhs => mhs.status === 'Risiko Tinggi').length;
+            kpiRisikoDo.textContent = risikoTinggiCount;
+        }
+
+        /**
+         * Memperbarui 4 grafik
+         */
+        function updateCharts(data) {
+            // Grafik 1: Distribusi Risiko (Donut)
+            const risikoRendah = data.filter(mhs => mhs.status === 'Tepat Waktu').length; // Asumsi Tepat Waktu = Risiko Rendah
+            const risikoSedang = data.filter(mhs => mhs.status === 'Risiko Sedang' || mhs.status === 'Terlambat').length;
+            const risikoTinggi = data.filter(mhs => mhs.status === 'Risiko Tinggi').length;
+
+            dropoutChartInstance.data.datasets[0].data = [risikoRendah, risikoSedang, risikoTinggi];
+            dropoutChartInstance.update();
+
+            // Grafik 2: Proyeksi Status (Bar)
+            const angkatanLabels = [...new Set(data.map(mhs => mhs.angkatan))].sort();
+            projectionChartInstance.data.labels = angkatanLabels.map(a => `Angk. ${a}`);
+            
+            projectionChartInstance.data.datasets[0].data = angkatanLabels.map(angkatan => 
+                data.filter(mhs => mhs.angkatan === angkatan && mhs.status === 'Tepat Waktu').length
+            );
+            projectionChartInstance.data.datasets[1].data = angkatanLabels.map(angkatan => 
+                data.filter(mhs => mhs.angkatan === angkatan && mhs.status === 'Terlambat').length
+            );
+            projectionChartInstance.data.datasets[2].data = angkatanLabels.map(angkatan => 
+                data.filter(mhs => mhs.angkatan === angkatan && (mhs.status === 'Risiko Tinggi' || mhs.status === 'Risiko Sedang')).length
+            );
+            projectionChartInstance.update();
+
+            // Grafik 3: Tren Risiko (Line)
+            const semesterLabels = [...new Set(data.map(mhs => mhs.semester))].sort((a, b) => a - b);
+            trendChartInstance.data.labels = semesterLabels.map(s => `Smst. ${s}`);
+            trendChartInstance.data.datasets[0].data = semesterLabels.map(semester => {
+                const mhsSemester = data.filter(mhs => mhs.semester === semester);
+                const risikoCount = mhsSemester.filter(mhs => mhs.risikoSkor >= 70).length;
+                return mhsSemester.length > 0 ? (risikoCount / mhsSemester.length) * 100 : 0; // Persentase risiko
+            });
+            trendChartInstance.update();
+
+            // Grafik 4: Distribusi Faktor Risiko (Bar)
+            const factorCounts = {};
+            // Hitung hanya faktor dari mahasiswa yang berisiko
+            data.filter(mhs => mhs.status !== 'Tepat Waktu').forEach(mhs => {
+                mhs.detail.faktor.forEach(faktor => {
+                    factorCounts[faktor] = (factorCounts[faktor] || 0) + 1;
+                });
+            });
+
+            // Ubah ke array, urutkan dari terbesar
+            const sortedFactors = Object.entries(factorCounts)
+                .sort(([, countA], [, countB]) => countB - countA)
+                .slice(0, 10); // Ambil top 10
+
+            // Pisahkan label dan data
+            const factorLabels = sortedFactors.map(entry => entry[0]);
+            const factorData = sortedFactors.map(entry => entry[1]);
+
+            factorChartInstance.data.labels = factorLabels;
+            factorChartInstance.data.datasets[0].data = factorData;
+            factorChartInstance.update();
+        }
+
+        /**
+         * Memperbarui tabel dan kontrol paginasi
+         */
+        function updateTable(data) {
+            studentTableBody.innerHTML = ''; // Kosongkan tabel
+            
+            const totalItems = data.length;
+            if (totalItems === 0) {
+                let message = searchNameInput.value ? `Tidak ada mahasiswa dengan nama "${searchNameInput.value}" ditemukan.` : 'Tidak ada data untuk filter yang dipilih.';
+                studentTableBody.innerHTML = `<tr><td colspan="5" class="py-6 px-4 text-center text-gray-500">${message}</td></tr>`;
+                pageInfo.textContent = 'Menampilkan 0 dari 0';
+                prevPageBtn.disabled = true;
+                nextPageBtn.disabled = true;
+                return;
+            }
+
+            const totalPages = Math.ceil(totalItems / rowsPerPage);
+            currentPage = Math.max(1, Math.min(currentPage, totalPages)); // Pastikan halaman valid
+
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+            const pageData = data.slice(startIndex, endIndex);
+
+            pageData.forEach(mhs => {
+                let risikoClass = '';
+                if (mhs.risikoSkor >= 85) {
+                    risikoClass = 'text-red-600 font-bold';
+                } else if (mhs.risikoSkor >= 65) {
+                    risikoClass = 'text-orange-600 font-semibold';
+                } else if (mhs.risikoSkor <= 30) {
+                    risikoClass = 'text-green-600';
+                } else {
+                    risikoClass = 'text-gray-700';
+                }
+
+                const row = `
+                    <tr class="hover:bg-gray-50 transition duration-150">
+                        <td class="py-3 px-4 font-medium">
+                            <button class="view-detail-btn text-blue-600 hover:text-blue-800 hover:underline text-left" data-id="${mhs.id}">
+                                ${mhs.nama}
+                            </button>
+                        </td>
+                        <td class="py-3 px-4">${mhs.nim}</td>
+                        <td class="py-3 px-4">${mhs.prodi} (${mhs.fakultas})</td>
+                        <td class="py-3 px-4">${mhs.semester}</td>
+                        <td class="py-3 px-4 ${risikoClass}">${mhs.risikoSkor}%</td>
+                    </tr>
+                `;
+                studentTableBody.innerHTML += row;
+            });
+
+            // Update info paginasi
+            pageInfo.textContent = `Menampilkan ${startIndex + 1}-${Math.min(endIndex, totalItems)} dari ${totalItems}`;
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages;
+
+            // Tambahkan event listener ke tombol detail
+            document.querySelectorAll('.view-detail-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const studentId = parseInt(btn.getAttribute('data-id'));
+                    const studentData = dummyDB.find(mhs => mhs.id === studentId);
+                    if (studentData) {
+                        showModal(studentData);
+                    }
+                });
+            });
+        }
+
+        /**
+         * Menampilkan modal dengan data mahasiswa
+         */
+        function showModal(student) {
+            modalNama.textContent = student.nama;
+            modalNim.textContent = student.nim;
+            modalProdi.textContent = `${student.prodi} (${student.fakultas}) / ${student.angkatan}`;
+            modalStatus.textContent = student.status;
+
+            modalFaktorRisiko.innerHTML = ''; // Kosongkan list
+            if (student.detail.faktor.length > 0) {
+                student.detail.faktor.forEach(faktor => {
+                    modalFaktorRisiko.innerHTML += `<li>${faktor}</li>`;
+                });
+                modalFaktorRisiko.className = 'list-disc list-inside mt-1 text-sm text-red-600';
+            } else {
+                modalFaktorRisiko.innerHTML = '<li>Tidak ada faktor risiko utama terdeteksi.</li>';
+                modalFaktorRisiko.className = 'list-disc list-inside mt-1 text-sm text-green-600';
+            }
+
+            // Update chart IPK di modal
+            const labels = student.detail.ipkHistory.map((_, i) => `Smst ${i + 1}`);
+            modalIPKChartInstance.data.labels = labels;
+            modalIPKChartInstance.data.datasets[0].data = student.detail.ipkHistory;
+            modalIPKChartInstance.update();
+
+            // Tampilkan modal
+            studentModal.classList.remove('hidden');
+            setTimeout(() => {
+                studentModal.classList.remove('opacity-0');
+                studentModal.querySelector('.modal-content').classList.remove('scale-95');
+            }, 10);
+        }
+
+        /**
+         * Menyembunyikan modal
+         */
+        function hideModal() {
+            studentModal.classList.add('opacity-0');
+            studentModal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => {
+                studentModal.classList.add('hidden');
+            }, 250); // Sesuaikan dengan durasi transisi
+        }
+
+
+        // =================================
+        // Inisialisasi Chart & Event Listeners
+        // =================================
+        // PERBAIKAN: Mengganti DOMContentLoaded dengan 'load' untuk menunggu semua script
+        window.addEventListener('load', () => {
+            // Inisialisasi Chart Donut
+            const ctxDropout = document.getElementById('dropoutRiskChart').getContext('2d');
+            dropoutChartInstance = new Chart(ctxDropout, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Risiko Rendah', 'Risiko Sedang', 'Risiko Tinggi'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['rgb(34, 197, 94)', 'rgb(249, 115, 22)', 'rgb(239, 68, 68)'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // Inisialisasi Chart Batang
+            const ctxProjection = document.getElementById('studyProjectionChart').getContext('2d');
+            projectionChartInstance = new Chart(ctxProjection, {
+                type: 'bar',
+                data: {
+                    labels: [], // Diisi oleh JS
+                    datasets: [
+                        { label: 'Tepat Waktu', data: [], backgroundColor: 'rgb(59, 130, 246)', borderRadius: 4 },
+                        { label: 'Terlambat', data: [], backgroundColor: 'rgb(245, 158, 11)', borderRadius: 4 },
+                        { label: 'Berisiko', data: [], backgroundColor: 'rgb(239, 68, 68)', borderRadius: 4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // Inisialisasi Chart Garis (Tren)
+            const ctxTrend = document.getElementById('dropoutTrendChart').getContext('2d');
+            trendChartInstance = new Chart(ctxTrend, {
+                type: 'line',
+                data: {
+                    labels: [], // Diisi oleh JS
+                    datasets: [{
+                        label: '% Mahasiswa Berisiko (Skor > 70)',
+                        data: [],
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100, ticks: { callback: (value) => value + '%' } } }, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // Inisialisasi Chart Modal (IPK)
+            const ctxModalIPK = document.getElementById('modal-ipk-chart').getContext('2d');
+            modalIPKChartInstance = new Chart(ctxModalIPK, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'IPK per Semester',
+                        data: [],
+                        borderColor: 'rgb(59, 130, 246)',
+                        tension: 0.1
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, max: 4.0 } } }
+            });
+
+            // Inisialisasi Chart Faktor Risiko (Horizontal Bar)
+            const ctxFactor = document.getElementById('factorDistributionChart').getContext('2d');
+            factorChartInstance = new Chart(ctxFactor, {
+                type: 'bar',
+                data: {
+                    labels: [], // Diisi oleh JS
+                    datasets: [{
+                        label: 'Jumlah Mahasiswa',
+                        data: [],
+                        backgroundColor: 'rgba(239, 68, 68, 0.7)', // Merah (sesuai tema risiko)
+                        borderColor: 'rgb(239, 68, 68)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Ini yang membuatnya jadi horizontal
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // Tidak perlu legend
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.raw} mahasiswa`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Event Listeners
+            applyFilterBtn.addEventListener('click', updateDashboard);
+            searchNameInput.addEventListener('input', updateDashboard);
+            sortBySelect.addEventListener('change', updateDashboard);
+            
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateTable(filteredData);
+                }
+            });
+
+            nextPageBtn.addEventListener('click', () => {
+                const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateTable(filteredData);
+                }
+            });
+
+            closeModalBtn.addEventListener('click', hideModal);
+            studentModal.addEventListener('click', (e) => {
+                // Tutup modal jika klik di luar area konten
+                if (e.target === studentModal) {
+                    hideModal();
+                }
+            });
+            
+            // PERBAIKAN: Panggil updateDashboard() langsung, karena 'window.load' menjamin semua script siap.
+            updateDashboard();
+        });
+    </script>
+
+</body>
+</html>
